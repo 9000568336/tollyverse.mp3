@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>tollyverse.mp3 — Telugu Music Streaming</title>
+  <meta name="description"
+    content="tollyverse.mp3 — Stream Telugu music with playlist management, song ratings and Dolby Atmos sound." />
+  <link rel="icon" type="image/jpeg" href="https://files.catbox.moe/9cpkuu.jpg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="css/app-v5.css?v=3.5" />
+  <link rel="stylesheet" href="css/app.css?v=3.5" />
+  <link rel="stylesheet" href="style.css?v=3.5" />
+  <style>
+    /* Critical Inline CSS Safeguard */
+    body { background: #0a0a0f !important; color: #f8fafc !important; font-family: sans-serif; }
+    svg { max-width: 24px; max-height: 24px; }
+    .player-bar svg { max-width: 24px; max-height: 24px; }
+    .app-shell { display: grid; grid-template-columns: 260px 1fr; height: 100vh; }
+    @media (max-width: 900px) { .app-shell { grid-template-columns: 1fr; } }
+  </style>
+</head>
+
+<body>
+
+  <!-- ═══════════════════════════════ 3D BACKGROUND ════════ -->
+  <canvas id="bgCanvas" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -2; pointer-events: none;"></canvas>
+
+  <!-- ═══════════════════════════════ DOLBY ATMOS BANNER ═══ -->
+  <div class="dolby-banner" id="dolbyBanner" aria-live="polite">
+    <div class="dolby-inner">
+      <div class="dolby-pulse"></div>
+      <div class="dolby-logo">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z" />
+        </svg>
+      </div>
+      <div class="dolby-text">
+        <span class="dolby-title">DOLBY ATMOS</span>
+        <span class="dolby-sub">Spatial Audio Activated</span>
+      </div>
+      <div class="dolby-waves">
+        <span></span><span></span><span></span><span></span><span></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════ APP SHELL ════════════ -->
+  <div class="app-shell" id="appShell">
+
+    <!-- ── LEFT SIDEBAR ─────────────────────────────────── -->
+    <aside class="sidebar" id="sidebar">
+      <!-- Brand -->
+      <div class="sidebar-brand">
+        <div class="sb-logo-icon">
+          <img src="https://files.catbox.moe/9cpkuu.jpg" onerror="this.onerror=null;this.src='images/logo.jpg'" alt="tollyverse Logo" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 1px solid rgba(255,255,255,0.2);" />
+        </div>
+        <span class="sb-brand-name">tollyverse<em>.mp3</em></span>
+      </div>
+
+      <!-- Nav -->
+      <nav class="sidebar-nav">
+        <button class="nav-item active" id="navHome" onclick="showView('home')">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
+          </svg>
+          Home
+        </button>
+
+        <button class="nav-item" id="navSearch" onclick="showView('search')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          Search
+        </button>
+        <button class="nav-item" id="navLibrary" onclick="showView('library')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+          </svg>
+          Your Library
+        </button>
+        <div class="sidebar-divider" style="margin: 8px 0"></div>
+        <button class="nav-item" id="navGames" onclick="showView('games')" style="color: #60a5fa;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="6" width="20" height="12" rx="2" ry="2"/>
+            <path d="M6 12h4m-2-2v4m8-2h.01M16 10h.01"/>
+          </svg>
+          Game Zone
+        </button>
+        <button class="nav-item" id="navMeditation" onclick="showView('meditation')" style="color: #34d399;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/>
+            <path d="M8 14s1.5 2 4 2 4-2 4-2"/>
+            <line x1="9" y1="9" x2="9.01" y2="9"/>
+            <line x1="15" y1="9" x2="15.01" y2="9"/>
+          </svg>
+          Meditation Zone
+        </button>
+      </nav>
+
+      <div class="sidebar-divider"></div>
+
+      <!-- Categories Section -->
+      <div class="sidebar-categories">
+        <div class="category-header">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;color:#94a3b8">
+            <path d="M4 6h16M4 12h10M4 18h6"/>
+          </svg>
+          <span>Categories</span>
+        </div>
+        <div class="category-list" id="sidebarCategoryList">
+          <button class="category-chip active" data-genre="all" onclick="filterByCategory('all', this)">All Songs</button>
+        </div>
+      </div>
+
+      <div class="sidebar-divider"></div>
+
+      <!-- Playlists Section -->
+      <div class="sidebar-playlists">
+        <div class="playlist-header">
+          <span>Playlists</span>
+          <button class="create-playlist-btn" id="createPlaylistBtn" onclick="openCreatePlaylistModal()"
+            title="Create playlist">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+          </button>
+        </div>
+        <div class="playlist-list" id="sidebarPlaylistList">
+          <p class="playlist-empty-msg">No playlists yet.<br>Create one to get started!</p>
+        </div>
+      </div>
+
+      <!-- Instagram Link -->
+      <a href="https://instagram.com/tollyverse.mp3" target="_blank" class="nav-item" style="color:#f8fafc; font-weight: 600; margin-bottom: 0.5rem; justify-content: center; display: flex; align-items: center; gap: 0.5rem;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:#ec4899; width: 18px; height: 18px; flex-shrink: 0;">
+          <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+          <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+          <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+        </svg>
+        <span style="color:#f8fafc; font-size: 0.88rem; font-weight: 600;">@tollyverse.mp3</span>
+      </a>
+      <!-- Logged-in user -->
+      <div class="sidebar-user" id="sidebarUser" style="display:none">
+        <img class="user-avatar" id="userAvatar" src="https://cdn.phototourl.com/free/2026-07-24-805f4af5-d81c-4bb8-ba56-02b2e61a9196.jpg" alt="User" />
+        <div class="user-info">
+          <span class="user-name" id="userName"></span>
+          <span class="user-email" id="userEmail"></span>
+        </div>
+        <button class="signout-btn" onclick="signOut()" title="Sign out">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <polyline points="16 17 21 12 16 7" />
+            <line x1="21" y1="12" x2="9" y2="12" />
+          </svg>
+        </button>
+      </div>
+      <!-- Guest prompt -->
+      <div class="sidebar-guest" id="sidebarGuest">
+        <div class="guest-text">
+          <span>Sign in to save playlists &amp; rate songs</span>
+        </div>
+        <button class="guest-signin-btn" onclick="openAuthModal('sidebar')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px">
+            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+            <polyline points="10 17 15 12 10 7" />
+            <line x1="15" y1="12" x2="3" y2="12" />
+          </svg>
+          Sign In
+        </button>
+      </div>
+    </aside>
+
+    <!-- ── MAIN CONTENT ──────────────────────────────────── -->
+    <main class="main-content" id="mainContent">
+
+      <!-- ─ TOP BAR ─ -->
+      <header class="topbar">
+        <div class="topbar-nav">
+          <button class="topbar-btn" id="mobileMenuBtn" onclick="toggleSidebar()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <line x1="3" y1="12" x2="21" y2="12" />
+              <line x1="3" y1="18" x2="21" y2="18" />
+            </svg>
+          </button>
+        </div>
+        <div class="search-bar-wrapper" id="searchBarWrapper">
+          <div class="search-bar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input type="text" id="searchInput" placeholder="Search songs, artists…" oninput="handleSearch(this.value)"
+              onfocus="showSearchViewIfEmpty()" autocomplete="off" />
+            <button class="search-clear" id="searchClear" onclick="clearSearch()" style="display:none">✕</button>
+          </div>
+        </div>
+        <div class="topbar-actions" style="display:flex !important; align-items:center; gap:0.8rem; margin-left:auto;">
+
+
+          <!-- Dolby Atmos Toggle Button -->
+          <button class="dolby-toggle" id="dolbyToggle" onclick="toggleDolbyAtmos()" title="Toggle Dolby Atmos" style="display:flex !important; align-items:center; gap:0.5rem; background:linear-gradient(135deg,#9333ea,#ec4899); border:1px solid rgba(255,255,255,0.3); border-radius:30px; padding:0.45rem 0.9rem; color:#fff; font-weight:700; cursor:pointer;">
+            <span class="dolby-icon">🎧</span>
+            <span class="dolby-label">Dolby Atmos</span>
+            <span class="dolby-status-dot" id="dolbyStatusDot" style="width:8px; height:8px; border-radius:50%; background:#22c55e; box-shadow:0 0 6px #22c55e;"></span>
+          </button>
+
+          <!-- Topbar Login Button -->
+          <div id="topbarGuest" class="topbar-guest-actions">
+            <button class="topbar-login-btn" onclick="openAuthModal('topbar')" style="display:flex; align-items:center; gap:0.4rem; padding:0.45rem 0.9rem; border-radius:30px; background:var(--grad); color:#fff; border:none; font-weight:600; cursor:pointer;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+              <span>Log In</span>
+            </button>
+          </div>
+
+          <!-- Topbar Profile -->
+          <div id="topbarUser" class="topbar-user-profile" style="display:none;" onclick="openAuthModal('profile')">
+            <img id="topbarUserAvatar" src="" alt="User" class="topbar-avatar" />
+            <span id="topbarUserName" class="topbar-username"></span>
+          </div>
+        </div>
+      </header>
+
+      <!-- ─ HOME VIEW ─ -->
+      <section class="view active" id="viewHome">
+        <div class="view-scroll">
+          <div class="welcome-banner">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem; width:100%;">
+              <div>
+                <h1 class="welcome-text" id="greetingText">Welcome! 🎵</h1>
+                <p class="welcome-sub">Discover the best Telugu music, all in one place.</p>
+              </div>
+              <div id="weatherWidget" class="weather-widget-badge" onclick="triggerEntryWeatherEffect('night')" title="Realtime Live Weather & Shooting Stars" style="display:flex !important; align-items:center; gap:0.75rem; background:linear-gradient(135deg, rgba(255,255,255,0.15), rgba(255,255,255,0.06)); border:1px solid rgba(255,255,255,0.3); border-radius:20px; padding:0.65rem 1.25rem; backdrop-filter:blur(16px); flex-shrink:0; cursor:pointer;">
+                <span class="weather-icon-glow" id="weatherIcon" style="font-size:1.6rem;">🌤️</span>
+                <div class="weather-info" style="display:flex; flex-direction:column; line-height:1.2;">
+                  <span class="weather-temp" id="weatherTemp" style="font-weight:900; font-size:1.15rem; color:#ffffff; text-shadow: 0 1px 5px rgba(0,0,0,0.9);">32°C</span>
+                  <span class="weather-desc" id="weatherDesc" style="font-size:0.78rem; color:#f1f5f9; font-weight:600;">Warm &amp; Sunny</span>
+                </div>
+                <div id="eveningStarsContainer" class="evening-stars" style="display:none;">
+                  <span class="star-twinkle">✨</span>
+                  <span class="star-twinkle" style="animation-delay: 0.5s;">⭐</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Recently Played -->
+          <div id="recentlyPlayedContainer" style="display:none; margin-top: 2rem;">
+            <h2 class="section-title" style="margin-bottom: 1rem;">Recently Played</h2>
+            <div id="recentlyPlayedList" class="horizontal-scroll" style="display:flex; gap:1.5rem; overflow-x:auto; padding-bottom:1rem; scrollbar-width: none;">
+              <!-- Cards injected here -->
+            </div>
+          </div>
+
+          <!-- Explore Multilingual Spotify Top Songs -->
+          <div id="exploreLanguagesSection" style="margin-top: 2rem;">
+            <div class="section-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
+              <div>
+                <h2 class="section-title" style="margin-bottom:0.2rem;">🌐 Explore Top Spotify Hits</h2>
+                <p style="font-size:0.8rem; color:var(--muted)">Stream trending Spotify charts in your favorite languages</p>
+              </div>
+            </div>
+
+            <!-- Language Pills Bar -->
+            <div class="lang-pills-bar" style="display:flex; gap:0.6rem; overflow-x:auto; margin:1rem 0; padding-bottom:0.5rem; scrollbar-width:none;">
+              <button class="lang-pill active" onclick="loadLanguageSongs('telugu', this)">🌺 Telugu Hits</button>
+              <button class="lang-pill" onclick="loadLanguageSongs('hindi', this)">⚡ Hindi Trending</button>
+              <button class="lang-pill" onclick="loadLanguageSongs('tamil', this)">🔥 Tamil Top 50</button>
+              <button class="lang-pill" onclick="loadLanguageSongs('kannada', this)">🌟 Kannada Hits</button>
+              <button class="lang-pill" onclick="loadLanguageSongs('malayalam', this)">🌊 Malayalam Top</button>
+              <button class="lang-pill" onclick="loadLanguageSongs('english', this)">🎧 Global English</button>
+            </div>
+
+            <!-- Multilingual Songs Horizontal Carousel -->
+            <div id="langSongsCarousel" class="horizontal-scroll" style="display:flex; gap:1.2rem; overflow-x:auto; padding-bottom:1rem; min-height:210px; scrollbar-width:none;">
+              <p class="empty-msg">Loading top songs...</p>
+            </div>
+          </div>
+
+          <!-- All Songs -->
+          <div class="section-header" style="margin-top:2rem">
+            <h3 class="section-title">All Songs</h3>
+          </div>
+          <div class="songs-list" id="allSongsList"></div>
+
+          <!-- Contribution / Support Plain Text Link -->
+          <div style="text-align:center; margin:3rem 0 1.5rem; padding-bottom:2rem;">
+            <span onclick="openContributionModal()" style="display:inline-flex; align-items:center; gap:0.4rem; color:#c084fc; font-size:0.88rem; font-weight:600; cursor:pointer; opacity:0.9; transition:all 0.2s ease;">
+              💖 Enjoying tollyverse.mp3? Tap here to Support &amp; View QR Code
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─ SEARCH VIEW ─ -->
+      <section class="view" id="viewSearch">
+        <div class="view-scroll">
+          
+          <!-- Recent Searches -->
+          <div id="recentSearchesContainer" style="display:none; margin-bottom: 2rem;">
+            <div class="section-header" style="display:flex; justify-content:space-between; align-items:center;">
+              <h2 class="section-title">Recent Searches</h2>
+              <button class="btn-secondary" onclick="clearSearchHistory()" style="padding:4px 8px; font-size:0.8rem">Clear</button>
+            </div>
+            <div id="recentSearchesList" style="display:flex; flex-wrap:wrap; gap:0.5rem; margin-top:1rem;"></div>
+          </div>
+
+          <!-- Local Results -->
+          <h2 class="section-title" style="margin-bottom:1rem">Your Library Results</h2>
+          <div class="songs-list" id="searchResultsList">
+            <p class="empty-msg">Start typing to search songs…</p>
+          </div>
+
+          <!-- Spotify Results -->
+          <div class="section-header" style="margin-top:2rem">
+            <h3 class="section-title">
+              <svg viewBox="0 0 24 24" fill="#1DB954" style="width:22px;height:22px;vertical-align:middle;margin-right:6px"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
+              Spotify Catalog
+            </h3>
+          </div>
+          <div class="songs-list" id="spotifyResultsList">
+            <p class="empty-msg">Search to discover songs from Spotify's entire catalog 🎵</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─ LIBRARY VIEW ─ -->
+      <section class="view" id="viewLibrary">
+        <div class="view-scroll">
+          <div class="library-header">
+            <h2 class="section-title">Your Library</h2>
+            <button class="btn-primary" onclick="openCreatePlaylistModal()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                style="width:16px;height:16px">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              New Playlist
+            </button>
+          </div>
+          <div class="playlists-grid" id="libraryPlaylistsGrid">
+            <p class="empty-msg">No playlists yet. Create your first one!</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─ PLAYLIST DETAIL VIEW ─ -->
+      <section class="view" id="viewPlaylist">
+        <div class="view-scroll">
+          <div class="playlist-detail-header" id="playlistDetailHeader"></div>
+          <div class="songs-list" id="playlistDetailSongs"></div>
+        </div>
+      </section>
+
+      <!-- ─ GAME ZONE VIEW ─ -->
+      <section class="view" id="viewGames">
+        <div class="view-scroll">
+          <div class="library-header">
+            <div>
+              <h2 class="section-title">🎮 Game Zone</h2>
+              <p style="color:var(--muted); margin-top:0.5rem; font-size:0.9rem;">Take a break and enjoy a stress-free game!</p>
+            </div>
+          </div>
+          
+          <div class="games-grid">
+            <div class="game-container">
+              <div class="game-header">
+                <h3>Tic-Tac-Toe</h3>
+                <button class="btn-primary" onclick="resetTicTacToe()" style="padding: 6px 12px; font-size:0.85rem">Restart</button>
+              </div>
+              <div class="tic-tac-toe-board" id="tictactoeBoard">
+                <div class="ttt-cell" onclick="playTicTacToe(0)"></div>
+                <div class="ttt-cell" onclick="playTicTacToe(1)"></div>
+                <div class="ttt-cell" onclick="playTicTacToe(2)"></div>
+                <div class="ttt-cell" onclick="playTicTacToe(3)"></div>
+                <div class="ttt-cell" onclick="playTicTacToe(4)"></div>
+                <div class="ttt-cell" onclick="playTicTacToe(5)"></div>
+                <div class="ttt-cell" onclick="playTicTacToe(6)"></div>
+                <div class="ttt-cell" onclick="playTicTacToe(7)"></div>
+                <div class="ttt-cell" onclick="playTicTacToe(8)"></div>
+              </div>
+              <p id="tictactoeStatus" style="text-align:center; margin-top:1rem; font-weight:600; color:var(--text-light)"></p>
+            </div>
+
+            <div class="game-container">
+              <div class="game-header">
+                <h3>Snake</h3>
+                <button class="btn-primary" onclick="initSnakeGame()" style="padding: 6px 12px; font-size:0.85rem">Start</button>
+              </div>
+              <div class="snake-board-wrapper">
+                <canvas id="snakeCanvas" width="300" height="300"></canvas>
+              </div>
+              <div class="snake-dpad">
+                <button class="dpad-btn up" onclick="snakeSetDir(0, -1)">▲</button>
+                <div class="dpad-row">
+                  <button class="dpad-btn left" onclick="snakeSetDir(-1, 0)">◀</button>
+                  <button class="dpad-btn right" onclick="snakeSetDir(1, 0)">▶</button>
+                </div>
+                <button class="dpad-btn down" onclick="snakeSetDir(0, 1)">▼</button>
+              </div>
+              <p id="snakeStatus" style="text-align:center; margin-top:1rem; font-weight:600; color:var(--text-light)">Score: 0</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─ MEDITATION ZONE VIEW ─ -->
+      <section class="view" id="viewMeditation">
+        <div class="view-scroll">
+          <div class="library-header">
+            <div>
+              <h2 class="section-title">🧘‍♂️ Meditation Zone</h2>
+              <p style="color:var(--muted); margin-top:0.5rem; font-size:0.9rem;">Relax and focus with free ambient sounds.</p>
+            </div>
+          </div>
+          
+          <div class="meditation-timer-container">
+            <span class="timer-label">Auto-Stop Timer:</span>
+            <div class="timer-buttons">
+              <button class="timer-btn" id="timerBtn2" onclick="setMeditationTimer(2)">2m</button>
+              <button class="timer-btn" id="timerBtn5" onclick="setMeditationTimer(5)">5m</button>
+              <button class="timer-btn" id="timerBtn10" onclick="setMeditationTimer(10)">10m</button>
+              <button class="timer-btn" id="timerBtn15" onclick="setMeditationTimer(15)">15m</button>
+              <button class="timer-btn timer-off active" id="timerBtn0" onclick="setMeditationTimer(0)">Off</button>
+            </div>
+            <div class="timer-countdown" id="meditationTimerDisplay" style="display:none">00:00</div>
+          </div>
+          
+          <div class="meditation-grid" id="meditationGrid">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ═══════════════════════════════ BOTTOM PLAYER ════════ -->
+  <audio id="audioPlayer" style="display:none"></audio>
+  <div class="player-bar" id="playerBar">
+    <!-- LEFT: Controls & Info -->
+    <div class="player-left">
+      <button class="custom-skip-btn" id="customPrevBtn" onclick="prevMeditationSong()">
+        <svg viewBox="0 0 24 24" width="20" height="20" style="max-width:20px;max-height:20px" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+      </button>
+      <button class="custom-play-btn" id="customPlayBtn" onclick="togglePlayPause()">
+        <svg id="playIcon" viewBox="0 0 24 24" width="24" height="24" style="max-width:24px;max-height:24px" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+        <svg id="pauseIcon" viewBox="0 0 24 24" width="24" height="24" style="display:none;max-width:24px;max-height:24px" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+      </button>
+      <button class="custom-skip-btn" id="customNextBtn" onclick="nextMeditationSong()">
+        <svg viewBox="0 0 24 24" width="20" height="20" style="max-width:20px;max-height:20px" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+      </button>
+      <div class="player-cover" id="playerCover">
+        <svg viewBox="0 0 24 24" width="24" height="24" style="max-width:24px;max-height:24px" fill="currentColor">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z" />
+        </svg>
+      </div>
+      <div class="player-meta">
+        <span class="player-title" id="playerTitle">Select a song</span>
+        <span class="player-artist" id="playerArtist">—</span>
+      </div>
+    </div>
+
+    <!-- CENTER: Scrubber & Embed -->
+    <div class="player-center">
+      <div class="custom-scrubber-container" id="customScrubberContainer">
+        <span class="time-text" id="timeCurrent">0:00</span>
+        <div class="scrubber-bar" id="scrubberBar" onclick="seekAudio(event)">
+          <div class="scrubber-progress" id="scrubberProgress"></div>
+        </div>
+        <span class="time-text" id="timeTotal">0:00</span>
+      </div>
+      <!-- Hidden embed wrapper for Spotify or SoundCloud Background -->
+      <div class="player-embed-wrapper" id="playerEmbedWrapper" style="display:none">
+        <iframe id="spotifyEmbed" src="about:blank" width="100%" height="80" frameborder="0" allowtransparency="true"
+          allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy">
+        </iframe>
+      </div>
+    </div>
+
+    <!-- RIGHT: Actions -->
+    <div class="player-right">
+      <div class="volume-container">
+        <button class="action-btn" title="Volume" onclick="toggleMute()">
+          <svg viewBox="0 0 24 24" width="20" height="20" style="max-width:20px;max-height:20px" fill="currentColor" id="volIcon"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+        </button>
+        <input type="range" class="volume-slider" id="volumeSlider" min="0" max="1" step="0.05" value="1" oninput="changeVolume(this.value)">
+      </div>
+      <button class="action-btn" title="Save" onclick="handleSaveClick(event)">
+        <svg viewBox="0 0 24 24" width="20" height="20" style="max-width:20px;max-height:20px" fill="currentColor"><path d="M17 3H7c-1.1 0-1.99.9-1.99 2L5 21l7-3 7 3V5c0-1.1-.9-2-2-2z"/></svg>
+      </button>
+      <button class="action-btn like-btn" title="Like">
+        <svg viewBox="0 0 24 24" width="20" height="20" style="max-width:20px;max-height:20px" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+        <span>511</span>
+      </button>
+      <button class="action-btn" title="Download">
+        <svg viewBox="0 0 24 24" width="20" height="20" style="max-width:20px;max-height:20px" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════ MODALS ════════════════ -->
+
+  <!-- Create Playlist Modal -->
+  <div class="modal-overlay" id="createPlaylistModal" onclick="closeModalOnOverlay(event,'createPlaylistModal')">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Create Playlist</h3>
+        <button class="modal-close" onclick="closeModal('createPlaylistModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="playlistNameInput">Playlist Name</label>
+          <input type="text" id="playlistNameInput" placeholder="My Playlist…" maxlength="60" />
+        </div>
+        <div class="form-group">
+          <label for="playlistDescInput">Description (optional)</label>
+          <input type="text" id="playlistDescInput" placeholder="About this playlist…" maxlength="120" />
+        </div>
+        <button class="btn-primary" style="width:100%;margin-top:0.5rem" onclick="createPlaylist()">Create
+          Playlist</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add to Playlist Modal -->
+  <div class="modal-overlay" id="addToPlaylistModal" onclick="closeModalOnOverlay(event,'addToPlaylistModal')">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Add to Playlist</h3>
+        <button class="modal-close" onclick="closeModal('addToPlaylistModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-playlist-list" id="modalPlaylistList">
+          <p class="empty-msg">No playlists. Create one first!</p>
+        </div>
+        <button class="btn-secondary" style="width:100%;margin-top:1rem" onclick="openCreatePlaylistModal()">
+          + New Playlist
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div class="app-toast" id="appToast"></div>
+
+  <!-- ═══════════════════════════════ CONTRIBUTION / QR MODAL ══ -->
+  <div class="modal-overlay" id="contributionModal" onclick="closeModalOnOverlay(event,'contributionModal')">
+    <div class="modal" style="max-width: 400px; text-align: center;">
+      <div class="modal-header" style="justify-content: space-between;">
+        <div>
+          <h3 style="font-size: 1.2rem; font-weight: 700; background: linear-gradient(135deg, #ec4899, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Support tollyverse.mp3 💖</h3>
+          <p style="font-size: 0.78rem; color: var(--muted); margin-top: 3px;">Any contribution helps keep the platform ad-free &amp; running!</p>
+        </div>
+        <button class="modal-close" onclick="closeModal('contributionModal')">✕</button>
+      </div>
+      <div class="modal-body" style="display: flex; flex-direction: column; align-items: center; gap: 0.8rem; padding: 1.2rem 0 0.5rem;">
+        <div style="background: rgba(255, 255, 255, 0.95); padding: 12px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 2px solid rgba(139, 92, 246, 0.4);">
+          <img src="https://cdn.phototourl.com/free/2026-07-24-65c548fd-e279-4c07-859d-bf4c5caecd10.png" alt="Contribution QR Code" style="width: 230px; height: 230px; object-fit: contain; border-radius: 8px; display: block;" />
+        </div>
+        <p style="font-size: 0.8rem; color: #cbd5e1; margin-top: 0.2rem;">Scan using any UPI App (GPay, PhonePe, Paytm)</p>
+        <button class="btn-primary" style="width: 100%; margin-top: 0.4rem;" onclick="closeModal('contributionModal')">Thank You! 🙏</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════ AUTH MODAL (Guest) ══ -->
+  <div class="modal-overlay" id="authModal" onclick="closeModalOnOverlay(event,'authModal')">
+    <div class="modal auth-modal-inner">
+      <div class="modal-header">
+        <div>
+          <h3 id="authModalTitle">Sign In to Continue</h3>
+          <p style="font-size:0.78rem;color:var(--muted);margin-top:2px" id="authModalSub">Save playlists &amp; rate
+            your favourite songs</p>
+        </div>
+        <button class="modal-close" onclick="closeModal('authModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <!-- Google -->
+        <button class="google-modal-btn" id="modalGoogleBtn" onclick="modalSignInGoogle()">
+          <svg style="width:18px;height:18px;flex-shrink:0" viewBox="0 0 24 24">
+            <path fill="#4285F4"
+              d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+            <path fill="#34A853"
+              d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+            <path fill="#FBBC05"
+              d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+            <path fill="#EA4335"
+              d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+          </svg>
+          Continue with Google
+        </button>
+
+        <div class="modal-divider"><span>or</span></div>
+
+        <!-- Tab switcher inside modal -->
+        <div class="modal-tab-bar">
+          <button class="modal-tab active" id="mTabLogin" onclick="switchModalTab('login')">Sign In</button>
+          <button class="modal-tab" id="mTabRegister" onclick="switchModalTab('register')">Create Account</button>
+        </div>
+
+        <!-- Login form -->
+        <form id="modalLoginForm" onsubmit="modalEmailLogin(event)"
+          style="display:flex;flex-direction:column;gap:0.75rem">
+          <input type="email" id="mLoginEmail" placeholder="Email address" required
+            style="background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:8px;padding:0.7rem 0.9rem;color:var(--text);font-family:Outfit,sans-serif;font-size:0.9rem;outline:none" />
+          <input type="password" id="mLoginPw" placeholder="Password" required
+            style="background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:8px;padding:0.7rem 0.9rem;color:var(--text);font-family:Outfit,sans-serif;font-size:0.9rem;outline:none" />
+          <button type="submit" class="btn-primary" style="width:100%" id="mLoginSubmit">Sign In</button>
+        </form>
+
+        <!-- Register form -->
+        <form id="modalRegisterForm" onsubmit="modalEmailRegister(event)"
+          style="display:none;flex-direction:column;gap:0.75rem">
+          <input type="text" id="mRegName" placeholder="Full name" required
+            style="background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:8px;padding:0.7rem 0.9rem;color:var(--text);font-family:Outfit,sans-serif;font-size:0.9rem;outline:none" />
+          <input type="email" id="mRegEmail" placeholder="Email address" required
+            style="background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:8px;padding:0.7rem 0.9rem;color:var(--text);font-family:Outfit,sans-serif;font-size:0.9rem;outline:none" />
+          <input type="password" id="mRegPw" placeholder="Password (min 6)" required minlength="6"
+            style="background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:8px;padding:0.7rem 0.9rem;color:var(--text);font-family:Outfit,sans-serif;font-size:0.9rem;outline:none" />
+          <button type="submit" class="btn-primary" style="width:100%" id="mRegSubmit">Create Account</button>
+        </form>
+
+        <div class="modal-auth-toast" id="modalAuthToast"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════ ONBOARDING MODAL ════ -->
+  <div class="modal-overlay" id="onboardingModal" style="z-index: 10000;">
+    <div class="modal onboarding-modal-inner" style="max-width: 500px;">
+      <div class="modal-header">
+        <div>
+          <h3>Welcome to TollyVerse! 🎵</h3>
+          <p style="font-size:0.78rem;color:var(--muted);margin-top:2px">Let's customize your music experience</p>
+        </div>
+      </div>
+      <div class="modal-body" style="padding-top: 1rem;">
+        <!-- Step Progress Bar -->
+        <div class="onboarding-steps">
+          <div class="ob-step active" id="obStepIndicator1">1</div>
+          <div class="ob-line"></div>
+          <div class="ob-step" id="obStepIndicator2">2</div>
+          <div class="ob-line"></div>
+          <div class="ob-step" id="obStepIndicator3">3</div>
+        </div>
+
+        <!-- Step 1: Music Directors -->
+        <div class="ob-step-content" id="obStepContent1">
+          <h4 style="margin-bottom: 0.5rem; font-size: 1rem; color: #f8fafc;">Who are your favorite music directors?</h4>
+          <p style="font-size: 0.8rem; color: var(--muted); margin-bottom: 1.2rem;">Select one or more to personalize your feed.</p>
+          <div class="chips-container" id="obDirectorsContainer">
+            <div class="chip" data-value="Anirudh" onclick="toggleChip(this)">Anirudh</div>
+            <div class="chip" data-value="Thaman S" onclick="toggleChip(this)">Thaman S</div>
+            <div class="chip" data-value="Devi Sri Prasad" onclick="toggleChip(this)">Devi Sri Prasad</div>
+            <div class="chip" data-value="A.R. Rahman" onclick="toggleChip(this)">A.R. Rahman</div>
+            <div class="chip" data-value="M.M. Keeravani" onclick="toggleChip(this)">M.M. Keeravani</div>
+            <div class="chip" data-value="Mickey J. Meyer" onclick="toggleChip(this)">Mickey J. Meyer</div>
+          </div>
+          <button class="btn-primary" style="width:100%; margin-top: 1.5rem;" onclick="nextOnboardingStep(1)">Next Step</button>
+        </div>
+
+        <!-- Step 2: Age -->
+        <div class="ob-step-content" id="obStepContent2" style="display:none">
+          <h4 style="margin-bottom: 0.5rem; font-size: 1rem; color: #f8fafc;">How old are you?</h4>
+          <p style="font-size: 0.8rem; color: var(--muted); margin-bottom: 1.2rem;">We'll tailor the vibes to your generation.</p>
+          <input type="number" id="obAgeInput" placeholder="Enter your age" min="5" max="100" required
+            style="width:100%; background:rgba(255,255,255,0.05); border:1px solid var(--border); border-radius:10px; padding:0.8rem 1rem; color:var(--text); font-family:Outfit,sans-serif; font-size:1rem; outline:none;" />
+          <button class="btn-primary" style="width:100%; margin-top: 1.5rem;" onclick="nextOnboardingStep(2)">Next Step</button>
+        </div>
+
+        <!-- Step 3: Mood / Category -->
+        <div class="ob-step-content" id="obStepContent3" style="display:none">
+          <h4 style="margin-bottom: 0.5rem; font-size: 1rem; color: #f8fafc;">What's your preferred mood today?</h4>
+          <p style="font-size: 0.8rem; color: var(--muted); margin-bottom: 1.2rem;">Select your favorite style.</p>
+          <div class="chips-container" id="obCategoryContainer">
+            <div class="chip" data-value="Love" onclick="toggleChip(this)">Love</div>
+            <div class="chip" data-value="Happy" onclick="toggleChip(this)">Happy</div>
+            <div class="chip" data-value="Emotional" onclick="toggleChip(this)">Emotional</div>
+            <div class="chip" data-value="Mass" onclick="toggleChip(this)">Mass</div>
+            <div class="chip" data-value="Classical" onclick="toggleChip(this)">Classical</div>
+          </div>
+          <button class="btn-primary" style="width:100%; margin-top: 1.5rem;" onclick="submitOnboarding()">Finish &amp; Listen 🎵</button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════ LOADING SCREEN ════════ -->
+  <div class="loading-screen" id="loadingScreen">
+    <div class="loading-logo">
+      <img src="images/logo.jpg" alt="Logo" style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover;" />
+      <div class="loading-brand">TollyVerse<em>.mp3</em></div>
+    </div>
+    <div class="loading-bar">
+      <div class="loading-progress"></div>
+    </div>
+  </div>
+
+  <!-- Firebase & App Scripts -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+
+  <!-- 3D Libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/vanilla-tilt/1.8.1/vanilla-tilt.min.js"></script>
+  <script src="js/three-bg.js"></script>
+
+  <script src="https://w.soundcloud.com/player/api.js"></script>
+  <script src="js/player.js?v=3.5"></script>
+  <script src="js/app-v5.js?v=3.5"></script>
+  <script src="js/playlist.js?v=3.5"></script>
+</body>
+
+</html>

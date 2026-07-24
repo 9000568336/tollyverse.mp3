@@ -1,0 +1,412 @@
+<!DOCTYPE html><html><head><title>tollyverse.mp3 — playlist.js</title><style>body { font-family: monospace; background: #0f172a; color: #f8fafc; padding: 2rem; white-space: pre-wrap; font-size: 11px; line-height: 1.5; } h1 { font-family: sans-serif; font-size: 18px; color: #c084fc; border-bottom: 1px solid #334155; padding-bottom: 8px; margin-bottom: 16px; }</style></head><body><h1>tollyverse.mp3 — playlist.js</h1><code>// ============================================================
+//  TollyVerse.mp3 — Playlist Management
+//  • Works with Firestore + localStorage fallback
+// ============================================================
+
+// ── Persist helper (save to localStorage + fire-and-forget Firestore) ──
+function persistPlaylists() {
+  // Always save locally first
+  if (typeof currentUser !== 'undefined' && currentUser) {
+    try {
+      localStorage.setItem(`tv_playlists_${currentUser.uid}`, JSON.stringify(userPlaylists));
+    } catch(e) {}
+
+    // Non-blocking Firestore sync
+    if (typeof db !== 'undefined') {
+      db.collection('users').doc(currentUser.uid).update({
+        playlists: userPlaylists
+      }).catch(err =&gt; {
+        console.warn('Firestore playlist sync failed (saved locally):', err);
+      });
+    }
+  }
+}
+
+// ── Load playlists from localStorage fallback ─────────────────
+window.loadLocalPlaylists = function() {
+  if (typeof currentUser !== 'undefined' && currentUser) {
+    try {
+      const saved = localStorage.getItem(`tv_playlists_${currentUser.uid}`);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length &gt; 0 && userPlaylists.length === 0) {
+          userPlaylists = parsed;
+        }
+      }
+    } catch(e) {}
+  }
+};
+
+// ── Create Playlist ───────────────────────────────────────────
+window.createPlaylist = function() {
+  if (!requireAuth('playlist')) return;
+  const name = document.getElementById('playlistNameInput').value.trim();
+  const desc = document.getElementById('playlistDescInput').value.trim();
+
+  if (!name) {
+    showAppToast('Please enter a playlist name.');
+    return;
+  }
+
+  const newPlaylist = {
+    id:        `pl_${Date.now()}_${Math.random().toString(36).slice(2,7)}`,
+    name:      name,
+    desc:      desc,
+    songs:     [],
+    createdAt: new Date().toISOString()
+  };
+
+  userPlaylists.push(newPlaylist);
+  persistPlaylists();
+
+  closeModal('createPlaylistModal');
+  renderPlaylists();
+  showAppToast(`Playlist "${name}" created! 🎶`);
+};
+
+// ── Add Song to Playlist ──────────────────────────────────────
+window.addSongToPlaylist = function(playlistId) {
+  if (!currentSongId) {
+    showAppToast('No song selected.');
+    return;
+  }
+
+  const playlist = userPlaylists.find(p =&gt; p.id === playlistId);
+  if (!playlist) return;
+
+  // Avoid duplicates
+  const isDuplicate = playlist.songs.some(item =&gt; 
+    (typeof item === 'string' ? item : item.id) === currentSongId
+  );
+  if (isDuplicate) {
+    showAppToast(`Already in "${playlist.name}".`);
+    closeModal('addToPlaylistModal');
+    return;
+  }
+
+  let songToSave = window.currentSongObj;
+  if (!songToSave || String(songToSave.id) !== String(currentSongId)) {
+    songToSave = (typeof allSongs !== 'undefined' ? allSongs.find(s =&gt; String(s.id) === String(currentSongId)) : null)
+      || (typeof userRecentlyPlayed !== 'undefined' ? userRecentlyPlayed.find(s =&gt; String(s.id) === String(currentSongId)) : null)
+      || {
+        id: currentSongId,
+        title: document.getElementById('playerTitle')?.textContent || 'Saved Track',
+        artist: document.getElementById('playerArtist')?.textContent || 'Artist',
+        coverArt: document.getElementById('playerCover')?.querySelector('img')?.src || '',
+        isSpotify: true
+      };
+  }
+
+  playlist.songs.push(songToSave);
+  persistPlaylists();
+
+  closeModal('addToPlaylistModal');
+  renderPlaylists();
+  openPlaylistDetail(playlistId);
+  showAppToast(`Added to "${playlist.name}"! ✅`);
+};
+
+// ── Remove Song from Playlist ─────────────────────────────────
+window.removeSongFromPlaylist = function(playlistId, songId) {
+  const playlist = userPlaylists.find(p =&gt; p.id === playlistId);
+  if (!playlist) return;
+
+  playlist.songs = playlist.songs.filter(item =&gt; 
+    (typeof item === 'string' ? item : item.id) !== songId
+  );
+  persistPlaylists();
+
+  renderPlaylists();
+  openPlaylistDetail(playlistId);
+  showAppToast('Song removed from playlist.');
+};
+
+// ── Delete Playlist ───────────────────────────────────────────
+window.deletePlaylist = function(playlistId) {
+  if (!confirm('Delete this playlist?')) return;
+
+  userPlaylists = userPlaylists.filter(p =&gt; p.id !== playlistId);
+  persistPlaylists();
+
+  showView('library');
+  renderPlaylists();
+  showAppToast('Playlist deleted.');
+};
+
+// ── Render Playlists ──────────────────────────────────────────
+window.renderPlaylists = function() {
+  loadLocalPlaylists();
+  renderSidebarPlaylists();
+  renderLibraryGrid();
+};
+
+function renderSidebarPlaylists() {
+  const container = document.getElementById('sidebarPlaylistList');
+  if (!container) return;
+  if (!userPlaylists.length) {
+    container.innerHTML = '&lt;p class="playlist-empty-msg"&gt;No playlists yet.&lt;br&gt;Create one to get started!&lt;/p&gt;';
+    return;
+  }
+
+  container.innerHTML = '';
+  userPlaylists.forEach(pl =&gt; {
+    const btn = document.createElement('button');
+    btn.className = 'sb-playlist-item';
+    btn.onclick   = () =&gt; openPlaylistDetail(pl.id);
+    btn.innerHTML = `
+      &lt;span class="sb-playlist-icon"&gt;🎵&lt;/span&gt;
+      &lt;span&gt;${escHtml(pl.name)}&lt;/span&gt;
+    `;
+    container.appendChild(btn);
+  });
+}
+
+function renderLibraryGrid() {
+  const grid = document.getElementById('libraryPlaylistsGrid');
+  if (!grid) return;
+  if (!userPlaylists.length) {
+    grid.innerHTML = `
+      &lt;div style="grid-column:1/-1;text-align:center;padding:3rem 1rem"&gt;
+        &lt;div style="font-size:3rem;margin-bottom:1rem"&gt;🎵&lt;/div&gt;
+        &lt;p class="empty-msg" style="margin-bottom:1rem"&gt;No playlists yet. Create your first one!&lt;/p&gt;
+        &lt;button class="btn-primary" onclick="openCreatePlaylistModal()" style="display:inline-flex;gap:0.5rem;align-items:center"&gt;
+          &lt;svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:16px;height:16px"&gt;&lt;line x1="12" y1="5" x2="12" y2="19"/&gt;&lt;line x1="5" y1="12" x2="19" y2="12"/&gt;&lt;/svg&gt;
+          Create Playlist
+        &lt;/button&gt;
+      &lt;/div&gt;`;
+    return;
+  }
+
+  grid.innerHTML = '';
+  userPlaylists.forEach(pl =&gt; {
+    const firstItem = pl.songs[0];
+    const firstSong = typeof firstItem === 'string' 
+      ? (typeof allSongs !== 'undefined' ? allSongs.find(s =&gt; String(s.id) === String(firstItem)) : null)
+      : firstItem;
+    const coverImg = firstSong && typeof getSongCover === 'function' ? getSongCover(firstSong) : (firstSong?.coverArt || '');
+
+    const card = document.createElement('div');
+    card.className = 'playlist-grid-card';
+    card.onclick   = () =&gt; openPlaylistDetail(pl.id);
+    card.innerHTML = `
+      &lt;div class="playlist-grid-cover"&gt;${coverImg ? `&lt;img src="${coverImg}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:12px"&gt;` : '🎵'}&lt;/div&gt;
+      &lt;div class="playlist-grid-name"&gt;${escHtml(pl.name)}&lt;/div&gt;
+      &lt;div class="playlist-grid-meta"&gt;${pl.songs.length} song${pl.songs.length !== 1 ? 's' : ''}&lt;/div&gt;
+    `;
+    grid.appendChild(card);
+  });
+
+  if (window.VanillaTilt) {
+    VanillaTilt.init(document.querySelectorAll(".playlist-grid-card"), {
+      max: 10, speed: 400, glare: true, "max-glare": 0.15, perspective: 1000, scale: 1.03
+    });
+  }
+}
+
+// ── Resolve Spotify Track Detail (Background fetch for string IDs) ──
+window.resolveSpotifyTrackDetail = async function(playlistId, trackId) {
+  if (!trackId) return;
+  try {
+    const baseUrl = window.location.protocol === 'file:' ? 'http://localhost:8083' : '';
+    const res = await fetch(`${baseUrl}/api/spotify/track/${trackId}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data || !data.name) return;
+
+    const artistName = Array.isArray(data.artists) ? data.artists.map(a =&gt; a.name).join(', ') : 'Spotify Artist';
+    const coverUrl = (data.album && data.album.images && data.album.images.length &gt; 0) ? data.album.images[0].url : '';
+
+    const updatedSong = {
+      id: trackId,
+      title: data.name,
+      artist: artistName,
+      coverArt: coverUrl,
+      spotifyUrl: `https://open.spotify.com/embed/track/${trackId}?utm_source=generator&theme=0`,
+      isSpotify: true
+    };
+
+    // Update in userPlaylists array permanently
+    if (typeof userPlaylists !== 'undefined') {
+      const pl = userPlaylists.find(p =&gt; p.id === playlistId);
+      if (pl) {
+        const idx = pl.songs.findIndex(s =&gt; (typeof s === 'string' ? s : s.id) === trackId);
+        if (idx !== -1) {
+          pl.songs[idx] = updatedSong;
+          if (typeof persistPlaylists === 'function') persistPlaylists();
+        }
+      }
+    }
+
+    // Update DOM row immediately
+    const titleEl = document.getElementById(`playlist-song-title-${trackId}`);
+    const artistEl = document.getElementById(`playlist-song-artist-${trackId}`);
+    const coverEl = document.getElementById(`playlist-song-cover-${trackId}`);
+
+    if (titleEl) titleEl.textContent = updatedSong.title;
+    if (artistEl) artistEl.textContent = updatedSong.artist;
+    if (coverEl && coverUrl) {
+      coverEl.innerHTML = `&lt;img src="${coverUrl}" alt="${escHtml(updatedSong.title)}" style="width:100%;height:100%;object-fit:cover;" /&gt;`;
+    }
+  } catch (err) {
+    console.warn('Failed to resolve Spotify track detail:', err);
+  }
+};
+
+// ── Open Playlist Detail ──────────────────────────────────────
+window.openPlaylistDetail = function(playlistId) {
+  const pl = userPlaylists.find(p =&gt; p.id === playlistId);
+  if (!pl) return;
+
+  // Header cover image (first song's Spotify cover art)
+  const firstItem = pl.songs[0];
+  const firstSong = typeof firstItem === 'object' ? firstItem : null;
+  const firstCover = firstSong ? (firstSong.coverArt || (typeof getSongCover === 'function' ? getSongCover(firstSong) : '')) : '';
+
+  // Header
+  const header = document.getElementById('playlistDetailHeader');
+  header.innerHTML = `
+    &lt;div class="pd-cover" id="pdHeaderCover"&gt;
+      ${firstCover ? `&lt;img src="${firstCover}" alt="${escHtml(pl.name)}" style="width:100%;height:100%;object-fit:cover;border-radius:16px" /&gt;` : '🎵'}
+    &lt;/div&gt;
+    &lt;div class="pd-info"&gt;
+      &lt;div style="font-size:0.75rem;font-weight:600;letter-spacing:0.1em;color:var(--muted);text-transform:uppercase"&gt;Playlist&lt;/div&gt;
+      &lt;div class="pd-info-title"&gt;${escHtml(pl.name)}&lt;/div&gt;
+      &lt;div class="pd-info-meta"&gt;${pl.desc ? escHtml(pl.desc) + ' · ' : ''}${pl.songs.length} songs&lt;/div&gt;
+      &lt;div style="display:flex;gap:0.75rem;margin-top:1rem"&gt;
+        &lt;button class="btn-primary" onclick="playFirstSong('${pl.id}')"&gt;
+          &lt;svg viewBox="0 0 24 24" fill="white" style="width:16px;height:16px"&gt;&lt;path d="M5 3l14 9-14 9V3z"/&gt;&lt;/svg&gt;
+          Play
+        &lt;/button&gt;
+        &lt;button class="btn-secondary" onclick="deletePlaylist('${pl.id}')"&gt;Delete&lt;/button&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  `;
+
+  // Songs
+  const songsInPlaylist = pl.songs
+    .map(item =&gt; {
+      if (typeof item === 'string') {
+        let found = (typeof allSongs !== 'undefined') ? allSongs.find(s =&gt; String(s.id) === String(item)) : null;
+        if (!found && typeof userRecentlyPlayed !== 'undefined') {
+          found = userRecentlyPlayed.find(s =&gt; String(s.id) === String(item));
+        }
+        if (!found && typeof window.spotifySearchCache !== 'undefined') {
+          found = window.spotifySearchCache.find(s =&gt; String(s.id) === String(item));
+        }
+        if (!found) {
+          found = {
+            id: item,
+            title: 'Loading song details...',
+            artist: 'Spotify',
+            coverArt: '',
+            isSpotify: true,
+            needsResolve: true
+          };
+        }
+        return found;
+      }
+      return item;
+    })
+    .filter(Boolean);
+
+  const detailList = document.getElementById('playlistDetailSongs');
+  detailList.innerHTML = '';
+
+  if (!songsInPlaylist.length) {
+    detailList.innerHTML = '&lt;p class="empty-msg"&gt;No songs in this playlist yet.&lt;br&gt;Play a song and click "Add to Playlist".&lt;/p&gt;';
+  } else {
+    songsInPlaylist.forEach((song, idx) =&gt; {
+      const coverSrc = typeof getSongCover === 'function' ? getSongCover(song) : (song.coverArt || '');
+      const row = document.createElement('div');
+      row.className = 'song-row';
+      row.onclick   = () =&gt; {
+        if (song.isSpotify || (song.id && String(song.id).length &gt; 15)) {
+          if (typeof playSpotifySong === 'function') {
+            playSpotifySong({
+              id: song.id,
+              name: song.title !== 'Loading song details...' ? song.title : 'Spotify Track',
+              artists: [{ name: song.artist }],
+              album: { images: coverSrc ? [{ url: coverSrc }] : [] }
+            });
+          } else if (typeof playSong === 'function') {
+            playSong(song);
+          }
+        } else if (typeof playSong === 'function') {
+          playSong(song);
+        }
+      };
+      row.innerHTML = `
+        &lt;span class="song-row-num"&gt;${idx + 1}&lt;/span&gt;
+        &lt;div class="song-row-cover" id="playlist-song-cover-${song.id}"&gt;
+          ${coverSrc
+            ? `&lt;img src="${coverSrc}" alt="${escHtml(song.title)}" /&gt;`
+            : `&lt;span class="song-row-cover-icon"&gt;🎵&lt;/span&gt;`
+          }
+        &lt;/div&gt;
+        &lt;div class="song-row-info"&gt;
+          &lt;div class="song-row-title" id="playlist-song-title-${song.id}"&gt;${escHtml(song.title)}&lt;/div&gt;
+          &lt;div class="song-row-artist" id="playlist-song-artist-${song.id}"&gt;${escHtml(song.artist)}&lt;/div&gt;
+        &lt;/div&gt;
+        &lt;span class="song-row-genre"&gt;${escHtml(song.genre || (song.isSpotify ? 'SPOTIFY' : ''))}&lt;/span&gt;
+        &lt;div class="song-row-rating"&gt;&lt;/div&gt;
+        &lt;button class="song-row-more" title="Remove" onclick="event.stopPropagation(); removeSongFromPlaylist('${pl.id}','${song.id}')"&gt;
+          &lt;svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"&gt;&lt;polyline points="3 6 5 6 21 6"/&gt;&lt;path d="M19 6l-1 14H6L5 6"/&gt;&lt;path d="M10 11v6"/&gt;&lt;path d="M14 11v6"/&gt;&lt;path d="M9 6V4h6v2"/&gt;&lt;/svg&gt;
+        &lt;/button&gt;
+      `;
+      detailList.appendChild(row);
+
+      // If this song needs real Spotify detail resolution, launch background fetch
+      if (song.needsResolve || song.title.startsWith('Loading song details...') || song.title.startsWith('Track ')) {
+        resolveSpotifyTrackDetail(pl.id, song.id);
+      }
+    });
+  }
+
+  // Mark sidebar active
+  document.querySelectorAll('.sb-playlist-item').forEach(b =&gt; {
+    b.classList.toggle('active', b.querySelector('span:last-child').textContent === pl.name);
+  });
+
+  showView('playlist');
+};
+
+// ── Play first song in playlist ───────────────────────────────
+window.playFirstSong = function(playlistId) {
+  const pl = userPlaylists.find(p =&gt; p.id === playlistId);
+  if (!pl || !pl.songs.length) { showAppToast('Playlist is empty!'); return; }
+
+  const firstItem = pl.songs[0];
+  const song = typeof firstItem === 'string' 
+    ? (typeof allSongs !== 'undefined' ? allSongs.find(s =&gt; s.id === firstItem) : null)
+    : firstItem;
+  if (song) playSong(song);
+};
+
+// ── Render Add-to-Playlist Modal ──────────────────────────────
+window.renderModalPlaylistList = function() {
+  const container = document.getElementById('modalPlaylistList');
+  if (!container) return;
+  if (!userPlaylists.length) {
+    container.innerHTML = '&lt;p class="empty-msg"&gt;No playlists. Create one!&lt;/p&gt;';
+    return;
+  }
+
+  container.innerHTML = '';
+  userPlaylists.forEach(pl =&gt; {
+    const btn = document.createElement('button');
+    btn.className = 'modal-playlist-item';
+    btn.onclick   = () =&gt; addSongToPlaylist(pl.id);
+    btn.innerHTML = `
+      &lt;span class="modal-playlist-icon"&gt;🎵&lt;/span&gt;
+      &lt;span&gt;${escHtml(pl.name)}&lt;/span&gt;
+      &lt;span style="margin-left:auto;font-size:0.75rem;color:var(--muted)"&gt;${pl.songs.length} songs&lt;/span&gt;
+    `;
+    container.appendChild(btn);
+  });
+};
+
+// Helper (re-use from app.js scope)
+function escHtml(str = '') {
+  return str.replace(/&/g,'&amp;').replace(/&lt;/g,'&lt;').replace(/&gt;/g,'&gt;').replace(/"/g,'&quot;');
+}
+</code></body></html>

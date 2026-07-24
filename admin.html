@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TollyVerse Admin — Dashboard</title>
+  <meta name="description" content="TollyVerse.mp3 Admin Panel — Manage songs and content." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/admin.css" />
+</head>
+<body>
+
+  <!-- Loading -->
+  <div class="admin-loading" id="adminLoading" style="display:none">
+    <div class="al-inner">
+      <img src="images/logo.jpg" alt="Logo" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover; margin-bottom: 1rem;" />
+      <p>Loading admin data…</p>
+    </div>
+  </div>
+
+  <!-- Admin Shell -->
+  <div class="admin-shell" id="adminShell" style="display:none">
+
+    <!-- ── SIDEBAR ─────────────────────────────────────────── -->
+    <aside class="admin-sidebar">
+      <div class="admin-brand">
+        <img src="images/logo.jpg" alt="Logo" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover;" />
+        <div>
+          <div class="admin-brand-name">TollyVerse</div>
+          <div class="admin-brand-sub">Admin Panel</div>
+        </div>
+      </div>
+
+      <nav class="admin-nav">
+        <button class="admin-nav-item active" id="navDashboard" onclick="showAdminView('dashboard')">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
+          Dashboard
+        </button>
+        <button class="admin-nav-item" id="navSongs" onclick="showAdminView('songs')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+          Songs
+        </button>
+        <button class="admin-nav-item" id="navAdd" onclick="showAdminView('add')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add Song
+        </button>
+      </nav>
+
+      <div class="admin-sidebar-footer">
+        <img class="admin-avatar" id="adminAvatar" src="" alt="Admin" />
+        <div class="admin-user-info">
+          <span id="adminName">Admin</span>
+          <span id="adminEmail" style="font-size:0.72rem;color:var(--muted)"></span>
+        </div>
+        <button class="admin-signout" onclick="adminSignOut()" title="Sign out">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        </button>
+      </div>
+    </aside>
+
+    <!-- ── MAIN ───────────────────────────────────────────── -->
+    <main class="admin-main">
+
+      <!-- ─ DASHBOARD ─ -->
+      <section class="admin-view active" id="viewDashboard">
+        <div class="admin-view-header">
+          <h1 class="admin-page-title">Dashboard</h1>
+          <span class="admin-page-sub">Welcome back, Admin 👋</span>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon" style="background:rgba(168,85,247,0.15);color:#a855f7">🎵</div>
+            <div class="stat-info">
+              <div class="stat-value" id="statSongs">—</div>
+              <div class="stat-label">Total Songs</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon" style="background:rgba(29,185,84,0.15);color:#1db954">👥</div>
+            <div class="stat-info">
+              <div class="stat-value" id="statUsers">—</div>
+              <div class="stat-label">Registered Users</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon" style="background:rgba(236,72,153,0.15);color:#ec4899">▶️</div>
+            <div class="stat-info">
+              <div class="stat-value" id="statPlays">—</div>
+              <div class="stat-label">Total Plays</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon" style="background:rgba(245,158,11,0.15);color:#f59e0b">⭐</div>
+            <div class="stat-info">
+              <div class="stat-value" id="statRatings">—</div>
+              <div class="stat-label">Ratings Given</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Songs -->
+        <div class="admin-card" style="margin-top:1.5rem">
+          <div class="admin-card-header">
+            <h3>Recently Added Songs</h3>
+            <button class="btn-primary small" onclick="showAdminView('add')">+ Add Song</button>
+          </div>
+          <div class="songs-table-wrapper">
+            <table class="songs-table" id="recentSongsTable">
+              <thead>
+                <tr><th>#</th><th>Title</th><th>Artist</th><th>Genre</th><th>Plays</th><th>Rating</th><th>Actions</th></tr>
+              </thead>
+              <tbody id="recentSongsBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─ SONGS ─ -->
+      <section class="admin-view" id="viewSongs">
+        <div class="admin-view-header">
+          <h1 class="admin-page-title">All Songs</h1>
+          <button class="btn-primary" onclick="showAdminView('add')">+ Add New Song</button>
+        </div>
+
+        <div class="admin-card">
+          <div class="admin-card-header">
+            <div class="admin-search-bar">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input type="text" id="adminSearchInput" placeholder="Search songs…" oninput="filterAdminSongs(this.value)" />
+            </div>
+            <span class="song-count-badge" id="songCountBadge">0 songs</span>
+          </div>
+          <div class="songs-table-wrapper">
+            <table class="songs-table" id="allSongsTable">
+              <thead>
+                <tr><th>#</th><th>Cover</th><th>Title</th><th>Artist</th><th>Genre</th><th>Plays</th><th>Avg Rating</th><th>Actions</th></tr>
+              </thead>
+              <tbody id="allSongsBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─ ADD SONG ─ -->
+      <section class="admin-view" id="viewAdd">
+        <div class="admin-view-header">
+          <h1 class="admin-page-title" id="addViewTitle">Add New Song</h1>
+          <span class="admin-page-sub">Post a Spotify song link to your platform</span>
+        </div>
+
+        <div class="admin-card add-song-form-card">
+          <form id="addSongForm" onsubmit="handleAddSong(event)">
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="songTitle">Song Title *</label>
+                <input type="text" id="songTitle" placeholder="e.g. Samajavaragamana" required maxlength="100" />
+              </div>
+              <div class="form-group">
+                <label for="songArtist">Artist Name *</label>
+                <input type="text" id="songArtist" placeholder="e.g. S.P. Balasubrahmanyam" required maxlength="100" />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="songSpotifyUrl">
+                Spotify Song URL *
+                <span class="label-hint">Paste the full Spotify track URL</span>
+              </label>
+              <input type="url" id="songSpotifyUrl" placeholder="https://open.spotify.com/track/XXXXXXXXXX" required />
+              <div class="url-help">
+                <svg viewBox="0 0 24 24" fill="currentColor" style="width:14px;height:14px;color:#1db954"><circle cx="12" cy="12" r="10"/><path d="M8 12.5a4 4 0 0 1 8 0" stroke="white" stroke-width="1.5" fill="none"/><circle cx="12" cy="8" r="1" fill="white"/><path d="M9 16.5l-.5.5" stroke="white" stroke-width="1.5"/><path d="M15 16.5l.5.5" stroke="white" stroke-width="1.5"/></svg>
+                Open Spotify → right-click song → "Share" → "Copy Song Link"
+              </div>
+            </div>
+
+            <!-- Spotify Embed Preview -->
+            <div class="embed-preview" id="embedPreview" style="display:none">
+              <label>Preview</label>
+              <iframe id="previewIframe" src="about:blank" width="100%" height="80"
+                frameborder="0" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                style="border-radius:10px"></iframe>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="songGenre">Genre</label>
+                <select id="songGenre">
+                  <option value="">Select genre…</option>
+                  <option>Pop</option>
+                  <option>Classical</option>
+                  <option>Mass</option>
+                  <option>Romantic</option>
+                  <option>Devotional</option>
+                  <option>Folk</option>
+                  <option>Item</option>
+                  <option>Melody</option>
+                  <option>Remix</option>
+                  <option>Other</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="songCoverArt">Cover Art URL (optional)</label>
+                <input type="url" id="songCoverArt" placeholder="https://…/cover.jpg" />
+              </div>
+            </div>
+
+            <!-- Cover Preview -->
+            <div class="cover-preview-row" id="coverPreviewRow" style="display:none">
+              <img id="coverPreviewImg" src="" alt="Cover preview" style="width:80px;height:80px;border-radius:8px;object-fit:cover" />
+              <span>Cover preview</span>
+            </div>
+
+            <input type="hidden" id="editSongId" value="" />
+
+            <div class="form-actions">
+              <button type="button" class="btn-secondary" onclick="previewSpotifyEmbed()">Preview Spotify</button>
+              <button type="submit" class="btn-primary" id="addSongSubmitBtn">
+                <span id="addBtnText">🎵 Post Song</span>
+                <div class="btn-loader" id="addBtnLoader" style="display:none"></div>
+              </button>
+              <button type="button" class="btn-secondary" onclick="resetAddForm()" id="cancelEditBtn" style="display:none">Cancel Edit</button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <!-- ─ EDIT SONG MODAL ─ -->
+      <div class="modal-overlay" id="editModal" onclick="closeAdminModal(event)">
+        <div class="admin-modal">
+          <div class="modal-header">
+            <h3>Edit Song</h3>
+            <button class="modal-close" onclick="document.getElementById('editModal').classList.remove('open')">✕</button>
+          </div>
+          <div class="modal-body" id="editModalBody"></div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- Toast -->
+  <div class="admin-toast" id="adminToast"></div>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/admin.js"></script>
+</body>
+</html>

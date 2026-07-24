@@ -1,0 +1,334 @@
+<!DOCTYPE html><html><head><title>tollyverse.mp3 — server.js</title><style>body { font-family: monospace; background: #0f172a; color: #f8fafc; padding: 2rem; white-space: pre-wrap; font-size: 11px; line-height: 1.5; } h1 { font-family: sans-serif; font-size: 18px; color: #c084fc; border-bottom: 1px solid #334155; padding-bottom: 8px; margin-bottom: 16px; }</style></head><body><h1>tollyverse.mp3 — server.js</h1><code>const http = require('http');
+const https = require('https');
+const fs = require('fs');
+const path = require('path');
+
+const PORT = 8081;
+
+// ── Spotify Credentials ───────────────────────────────────────
+const SPOTIFY_CLIENT_ID     = '89c5bb41c9004fbcbb3b22449eb609fd';
+const SPOTIFY_CLIENT_SECRET = 'baf42f3e9ef74b038d10a1e6365d632f';
+let spotifyToken = null;
+let tokenExpiry  = 0;
+
+// ── Get Spotify Access Token (Client Credentials Flow) ────────
+function getSpotifyToken() {
+  return new Promise((resolve, reject) =&gt; {
+    if (spotifyToken && Date.now() &lt; tokenExpiry) {
+      return resolve(spotifyToken);
+    }
+
+    const credentials = Buffer.from(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`).toString('base64');
+    const postData = 'grant_type=client_credentials';
+
+    const req = https.request({
+      hostname: 'accounts.spotify.com',
+      path: '/api/token',
+      method: 'POST',
+      headers: {
+        'Authorization': `Basic ${credentials}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Content-Length': Buffer.byteLength(postData)
+      }
+    }, (res) =&gt; {
+      let data = '';
+      res.on('data', chunk =&gt; { data += chunk; });
+      res.on('end', () =&gt; {
+        try {
+          const json = JSON.parse(data);
+          if (json.error) {
+            console.error('Spotify Auth Error:', json);
+            return reject(new Error(`Spotify Auth Error: ${json.error}`));
+          }
+          spotifyToken = json.access_token;
+          tokenExpiry  = Date.now() + (json.expires_in - 60) * 1000; // Refresh 60s early
+          resolve(spotifyToken);
+        } catch (e) {
+          console.error('Spotify Auth Parse Error:', e, data);
+          reject(e);
+        }
+      });
+    });
+    req.on('error', err =&gt; {
+      console.error('Spotify Auth Req Error:', err);
+      reject(err);
+    });
+    req.write(postData);
+    req.end();
+  });
+}
+
+// ── Spotify API Proxy ─────────────────────────────────────────
+function spotifyApiFetch(apiPath, isRetry = false) {
+  return new Promise(async (resolve, reject) =&gt; {
+    try {
+      let token = await getSpotifyToken();
+      const req = https.request({
+        hostname: 'api.spotify.com',
+        path: apiPath,
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${token}` }
+      }, (res) =&gt; {
+        let data = '';
+        res.on('data', chunk =&gt; { data += chunk; });
+        res.on('end', async () =&gt; {
+          try { 
+            const json = JSON.parse(data);
+            if (json.error && (json.error.status === 401 || json.error.message?.includes('expired')) && !isRetry) {
+              console.warn('[Spotify Proxy] Token 401 expired, refreshing token & retrying...');
+              spotifyToken = null;
+              tokenExpiry = 0;
+              try {
+                const retryData = await spotifyApiFetch(apiPath, true);
+                return resolve(retryData);
+              } catch(retryErr) {
+                return reject(retryErr);
+              }
+            }
+            if (json.error) console.error('Spotify API Error:', json.error);
+            resolve(json); 
+          }
+          catch (e) { 
+            console.error('Spotify API Non-JSON Response:', data);
+            reject(new Error(data.trim() || 'Invalid response from Spotify')); 
+          }
+        });
+      });
+      req.on('error', err =&gt; {
+        console.error('Spotify API Req Error:', err);
+        reject(err);
+      });
+      req.end();
+    } catch (e) {
+      console.error('Spotify fetch failed wrapper:', e);
+      reject(e);
+    }
+  });
+}
+
+const mimeTypes = {
+  '.html': 'text/html',
+  '.js': 'text/javascript',
+  '.css': 'text/css',
+  '.json': 'application/json',
+  '.png': 'image/png',
+  '.jpg': 'image/jpg',
+  '.svg': 'image/svg+xml'
+};
+
+const requestHandler = async (request, response) =&gt; {
+  // Strip query parameters
+  const urlParts = request.url.split('?');
+  const urlWithoutQuery = urlParts[0];
+  const queryString = urlParts[1] || '';
+
+  // CORS headers for all responses
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, X-Action'
+  };
+
+  // Handle CORS preflight
+  if (request.method === 'OPTIONS') {
+    response.writeHead(204, corsHeaders);
+    response.end();
+    return;
+  }
+
+  // ── Spotify Search API ──────────────────────────────────────
+  if (urlWithoutQuery === '/api/spotify/search' && request.method === 'GET') {
+    const params = new URLSearchParams(queryString);
+    const query  = params.get('q') || '';
+    const type   = params.get('type') || 'track';
+    const requestedLimit = parseInt(params.get('limit') || '50', 10);
+    const market = params.get('market') || 'IN';
+
+    if (!query) {
+      response.writeHead(400, { ...corsHeaders, 'Content-Type': 'application/json' });
+      response.end(JSON.stringify({ error: 'Missing query parameter "q"' }));
+      return;
+    }
+
+    try {
+      const spotifyData = await spotifyApiFetch(`/v1/search?q=${encodeURIComponent(query)}&type=${type}&limit=${requestedLimit}&market=${market}`);
+      response.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
+      response.end(JSON.stringify(spotifyData));
+    } catch (err) {
+      console.error('[Spotify Proxy] Search Error:', err);
+      response.writeHead(500, { ...corsHeaders, 'Content-Type': 'application/json' });
+      response.end(JSON.stringify({ error: err.message || 'Spotify Search Error' }));
+    }
+    return;
+  }
+
+  // ── Spotify Track Detail API ────────────────────────────────
+  if (urlWithoutQuery.startsWith('/api/spotify/track/') && request.method === 'GET') {
+    const trackId = urlWithoutQuery.replace('/api/spotify/track/', '').trim();
+    if (!trackId) {
+      response.writeHead(400, { ...corsHeaders, 'Content-Type': 'application/json' });
+      response.end(JSON.stringify({ error: 'Missing trackId' }));
+      return;
+    }
+
+    try {
+      const trackData = await spotifyApiFetch(`/v1/tracks/${trackId}`);
+      response.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
+      response.end(JSON.stringify(trackData));
+    } catch (err) {
+      console.error('[Spotify Proxy] Track Error:', err);
+      response.writeHead(500, { ...corsHeaders, 'Content-Type': 'application/json' });
+      response.end(JSON.stringify({ error: err.message || 'Spotify Track Error' }));
+    }
+    return;
+  }
+
+  // ── Spotify Token API (for frontend) ────────────────────────
+  if (urlWithoutQuery === '/api/spotify/token' && request.method === 'GET') {
+    try {
+      const token = await getSpotifyToken();
+      response.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
+      response.end(JSON.stringify({ access_token: token }));
+    } catch (err) {
+      response.writeHead(500, { ...corsHeaders, 'Content-Type': 'application/json' });
+      response.end(JSON.stringify({ error: err.message }));
+    }
+    return;
+  }
+
+  // ── Audio Proxy API ───────────────────────────────────────────
+  if (urlWithoutQuery === '/api/proxy-audio') {
+    const targetUrl = new URLSearchParams(queryString).get('url');
+    if (!targetUrl) {
+      response.writeHead(400, corsHeaders);
+      response.end('Missing url parameter');
+      return;
+    }
+    try {
+      https.get(targetUrl, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/114.0.0.0 Safari/537.36' } }, (res) =&gt; {
+        response.writeHead(200, {
+          'Content-Type': res.headers['content-type'] || 'audio/mpeg',
+          'Cache-Control': 'public, max-age=86400',
+          ...corsHeaders
+        });
+        res.pipe(response);
+      }).on('error', (e) =&gt; {
+        response.writeHead(500, corsHeaders);
+        response.end('Proxy Error');
+      });
+    } catch (e) {
+      response.writeHead(400, corsHeaders);
+      response.end('Invalid URL');
+    }
+    return;
+  }
+
+  // ── Songs API: GET ──────────────────────────────────────────
+  if (urlWithoutQuery === '/api/songs' && request.method === 'GET') {
+    fs.readFile('./songs.json', 'utf8', (err, data) =&gt; {
+      let songs = [];
+      if (!err && data) {
+        try { songs = JSON.parse(data); } catch(e) {}
+      }
+      response.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
+      response.end(JSON.stringify(songs));
+    });
+    return;
+  }
+
+  // ── Songs API: POST ─────────────────────────────────────────
+  if (urlWithoutQuery === '/api/songs' && request.method === 'POST') {
+    let body = '';
+    request.on('data', chunk =&gt; { body += chunk; });
+    request.on('end', () =&gt; {
+      let song;
+      try { song = JSON.parse(body); } catch(e) {}
+      if (!song) {
+        response.writeHead(400, corsHeaders);
+        response.end('Invalid JSON');
+        return;
+      }
+
+      fs.readFile('./songs.json', 'utf8', (err, data) =&gt; {
+        let songs = [];
+        if (!err && data) {
+          try { songs = JSON.parse(data); } catch(e) {}
+        }
+
+        if (request.headers['x-action'] === 'delete') {
+          songs = songs.filter(s =&gt; s.id !== song.id);
+        } else {
+          const idx = songs.findIndex(s =&gt; s.id === song.id);
+          if (idx !== -1) {
+            songs[idx] = { ...songs[idx], ...song, updatedAt: Date.now() };
+          } else {
+            song.id = song.id || 'song_' + Date.now();
+            song.createdAt = song.createdAt || Date.now();
+            song.playCount = 0;
+            song.totalRating = 0;
+            song.ratingCount = 0;
+            songs.unshift(song);
+          }
+        }
+
+        fs.writeFile('./songs.json', JSON.stringify(songs, null, 2), 'utf8', (err) =&gt; {
+          if (err) {
+            response.writeHead(500, corsHeaders);
+            response.end('Error saving');
+          } else {
+            response.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
+            response.end(JSON.stringify({ success: true, songs }));
+          }
+        });
+      });
+    });
+    return;
+  }
+
+  // ── Static File Server ──────────────────────────────────────
+  let filePath = '.' + urlWithoutQuery;
+  if (filePath === './') {
+    filePath = './index.html';
+  }
+
+  const extname = String(path.extname(filePath)).toLowerCase();
+  const contentType = mimeTypes[extname] || 'application/octet-stream';
+
+  fs.readFile(filePath, (error, content) =&gt; {
+    if (error) {
+      if(error.code === 'ENOENT') {
+        response.writeHead(404, { 'Content-Type': 'text/html' });
+        response.end('404 Not Found', 'utf-8');
+      } else {
+        response.writeHead(500);
+        response.end('Server error: '+error.code);
+      }
+    } else {
+      response.writeHead(200, {
+        'Content-Type': contentType,
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      });
+      response.end(content, 'utf-8');
+    }
+  });
+};
+
+function startServer(portToTry) {
+  const srv = http.createServer(requestHandler);
+  srv.listen(portToTry, () =&gt; {
+    console.log(`🎵 TollyVerse server running at http://localhost:${portToTry}/`);
+    console.log(`🎧 Open in browser: http://localhost:${portToTry}/index.html`);
+  }).on('error', (err) =&gt; {
+    if (err.code === 'EADDRINUSE') {
+      console.log(`⚠️ Port ${portToTry} is in use. Retrying on port ${portToTry + 1}...`);
+      startServer(portToTry + 1);
+    } else {
+      console.error('Server error:', err);
+    }
+  });
+}
+
+startServer(PORT);
+</code></body></html>

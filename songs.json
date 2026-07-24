@@ -1,0 +1,21 @@
+[
+  {
+    "title": "devara",
+    "artist": "anirudh",
+    "spotifyUrl": "https://open.spotify.com/track/4uwUk23qJYXHWFJgXWPg9T?si=ff85243da7624b84",
+    "spotifyEmbedUrl": "https://open.spotify.com/embed/track/4uwUk23qJYXHWFJgXWPg9T?utm_source=generator&theme=0",
+    "genre": "Mass",
+    "coverArt": "https://open.spotify.com/track/4uwUk23qJYXHWFJgXWPg9T?si=ff85243da7624b84",
+    "updatedAt": {
+      "_delegate": {
+        "_methodName": "FieldValue.serverTimestamp"
+      }
+    },
+    "playCount": 0,
+    "totalRating": 0,
+    "ratingCount": 0,
+    "addedBy": "local-admin",
+    "createdAt": 1784747436527,
+    "id": "local_1784747436527"
+  }
+]

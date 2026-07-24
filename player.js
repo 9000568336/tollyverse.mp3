@@ -1,0 +1,241 @@
+// ============================================================
+//  TollyVerse.mp3 — Spotify Embed Player + Dolby Atmos
+// ============================================================
+
+let dolbyActive = false;
+let audioCtx    = null;
+let dolbyNodes  = {};
+
+// ── Load Spotify Embed ────────────────────────────────────────
+window.loadSpotifyEmbed = function(spotifyUrl) {
+  if (!spotifyUrl) return;
+
+  let embedUrl = spotifyUrl;
+  if (spotifyUrl.includes('open.spotify.com') || spotifyUrl.includes('spotify.com')) {
+    const match = spotifyUrl.match(/\/(track|album|playlist|episode)\/([a-zA-Z0-9]+)/);
+    if (match) {
+      const type = match[1];
+      const id   = match[2];
+      embedUrl = `https://open.spotify.com/embed/${type}/${id}?utm_source=generator&theme=0&autoplay=1`;
+    }
+  }
+
+  const iframe = document.getElementById('spotifyEmbed');
+  const wrapper = document.querySelector('.player-embed-wrapper');
+  const scrubber = document.getElementById('customScrubberContainer');
+  
+  if (scrubber) scrubber.style.display = 'none';
+
+  if (wrapper) {
+    wrapper.style.display = 'flex';
+    wrapper.style.position = 'relative';
+    wrapper.style.left = '0';
+    wrapper.style.width = '100%';
+    wrapper.style.height = '80px';
+    wrapper.style.opacity = '1';
+    wrapper.style.pointerEvents = 'auto';
+    wrapper.style.background = 'rgba(0, 0, 0, 0.25)';
+    wrapper.style.borderRadius = '12px';
+    wrapper.style.overflow = 'hidden';
+  }
+
+  if (iframe) {
+    iframe.style.display = 'block';
+    iframe.style.opacity = '1';
+    iframe.allow = "autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture";
+    iframe.src = embedUrl;
+  }
+  
+  window.isPlaying = true;
+  if (typeof updatePlayBtnState === 'function') updatePlayBtnState();
+};
+
+// ── Dolby Atmos Toggle ────────────────────────────────────────
+window.toggleDolbyAtmos = function() {
+  dolbyActive = !dolbyActive;
+
+  // Update UI
+  updateDolbyUI(dolbyActive);
+
+  if (dolbyActive) {
+    activateDolby();
+    showDolbyBanner();
+  } else {
+    deactivateDolby();
+  }
+};
+
+function updateDolbyUI(active) {
+  const toggleBtns = [
+    document.getElementById('dolbyToggle'),
+    document.getElementById('dolbyPlayerBtn')
+  ];
+  const playerLabel = document.getElementById('dolbyPlayerLabel');
+
+  toggleBtns.forEach(btn => {
+    if (!btn) return;
+    btn.classList.toggle('active', active);
+  });
+  if (playerLabel) playerLabel.textContent = active ? 'Dolby ON' : 'Dolby OFF';
+}
+
+// ── Dolby Atmos Banner ────────────────────────────────────────
+function showDolbyBanner() {
+  const banner = document.getElementById('dolbyBanner');
+  banner.classList.add('show');
+  clearTimeout(window._dolbyBannerTimer);
+  window._dolbyBannerTimer = setTimeout(() => {
+    banner.classList.remove('show');
+  }, 4000);
+}
+
+// ── Web Audio Spatial Processing ──────────────────────────────
+// Note: This applies spatial effects to any audio playing on the page
+// via the Web Audio API. The Spotify iframe audio cannot be directly
+// piped through Web Audio due to cross-origin restrictions.
+// This creates an atmospheric spatial soundscape to accompany playback.
+
+function activateDolby() {
+  try {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+
+    // Create spatial audio effects
+    createSpatialAudio();
+
+    // Add Dolby visual effects to page
+    document.body.style.setProperty('--dolby-glow', 'rgba(168,85,247,0.15)');
+    document.body.classList.add('dolby-on');
+
+    console.log('🎧 Dolby Atmos Spatial Audio: ACTIVATED');
+
+  } catch (err) {
+    console.warn('Web Audio API not supported:', err);
+  }
+}
+
+function deactivateDolby() {
+  // Stop any Dolby audio nodes
+  if (dolbyNodes.oscillator) {
+    try {
+      dolbyNodes.oscillator.stop();
+    } catch (_) {}
+    dolbyNodes = {};
+  }
+
+  if (audioCtx) {
+    audioCtx.suspend().catch(() => {});
+  }
+
+  document.body.classList.remove('dolby-on');
+  console.log('🎧 Dolby Atmos Spatial Audio: DEACTIVATED');
+}
+
+function createSpatialAudio() {
+  if (!audioCtx) return;
+
+  // Stop previous nodes
+  if (dolbyNodes.oscillator) {
+    try { dolbyNodes.oscillator.stop(); } catch(_) {}
+  }
+
+  // Create a subtle spatial ambient tone (binaural effect)
+  // This simulates the "Dolby Atmos" overhead/surrounding sensation
+
+  const oscL = audioCtx.createOscillator();
+  const oscR = audioCtx.createOscillator();
+
+  oscL.type      = 'sine';
+  oscL.frequency.setValueAtTime(40, audioCtx.currentTime); // Sub-bass L
+
+  oscR.type      = 'sine';
+  oscR.frequency.setValueAtTime(40.5, audioCtx.currentTime); // Slight detune R (binaural beat)
+
+  // Gain nodes (very subtle)
+  const gainL = audioCtx.createGain();
+  const gainR = audioCtx.createGain();
+  gainL.gain.setValueAtTime(0.02, audioCtx.currentTime);
+  gainR.gain.setValueAtTime(0.02, audioCtx.currentTime);
+
+  // Stereo merger
+  const merger    = audioCtx.createChannelMerger(2);
+  const compressor = audioCtx.createDynamicsCompressor();
+  compressor.threshold.setValueAtTime(-24, audioCtx.currentTime);
+  compressor.knee.setValueAtTime(30, audioCtx.currentTime);
+  compressor.ratio.setValueAtTime(4, audioCtx.currentTime);
+  compressor.attack.setValueAtTime(0.003, audioCtx.currentTime);
+  compressor.release.setValueAtTime(0.25, audioCtx.currentTime);
+
+  // Convolver (room reverb)
+  const convolver = audioCtx.createConvolver();
+  convolver.buffer = createImpulseResponse(audioCtx, 2.5, 2.0);
+
+  // Panner for spatial effect
+  const panner = audioCtx.createStereoPanner();
+  panner.pan.setValueAtTime(0, audioCtx.currentTime);
+
+  // Connect graph: osc → gain → merger → compressor → convolver → dest
+  oscL.connect(gainL);
+  oscR.connect(gainR);
+  gainL.connect(merger, 0, 0);
+  gainR.connect(merger, 0, 1);
+  merger.connect(compressor);
+  compressor.connect(convolver);
+  convolver.connect(panner);
+  panner.connect(audioCtx.destination);
+
+  oscL.start();
+  oscR.start();
+
+  // Pan sweep for spatial sensation
+  const sweepDuration = 8;
+  function sweepPan() {
+    if (!dolbyActive) return;
+    panner.pan.linearRampToValueAtTime(-0.5, audioCtx.currentTime + sweepDuration / 2);
+    panner.pan.linearRampToValueAtTime(0.5,  audioCtx.currentTime + sweepDuration);
+    setTimeout(sweepPan, sweepDuration * 1000);
+  }
+  sweepPan();
+
+  dolbyNodes = { oscillator: oscL, oscR, gainL, gainR, panner, compressor, convolver };
+}
+
+// Generate a synthetic impulse response for reverb
+function createImpulseResponse(ctx, duration, decay) {
+  const sampleRate  = ctx.sampleRate;
+  const length      = sampleRate * duration;
+  const impulse     = ctx.createBuffer(2, length, sampleRate);
+
+  for (let ch = 0; ch < 2; ch++) {
+    const data = impulse.getChannelData(ch);
+    for (let i = 0; i < length; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, decay);
+    }
+  }
+  return impulse;
+}
+
+// ── Dolby CSS body effects ────────────────────────────────────
+const dolbyStyle = document.createElement('style');
+dolbyStyle.textContent = `
+  body.dolby-on .player-bar {
+    box-shadow: 0 -4px 30px rgba(168,85,247,0.2), 0 0 60px rgba(168,85,247,0.08);
+  }
+  body.dolby-on .song-card.playing,
+  body.dolby-on .song-row.playing {
+    box-shadow: 0 0 20px rgba(168,85,247,0.3);
+  }
+  body.dolby-on #playerCover {
+    box-shadow: 0 0 20px rgba(168,85,247,0.4);
+    animation: dolbyPulse 2s ease-in-out infinite;
+  }
+  @keyframes dolbyPulse {
+    0%, 100% { box-shadow: 0 0 20px rgba(168,85,247,0.4); }
+    50%       { box-shadow: 0 0 40px rgba(168,85,247,0.7); }
+  }
+`;
+document.head.appendChild(dolbyStyle);
