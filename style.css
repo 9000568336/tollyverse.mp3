@@ -422,7 +422,7 @@ html, body {
 .view-scroll::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.35); }
 
 /* Welcome Banner */
-.welcome-banner {margin-bottom: 2rem;}
+.welcome-banner {margin-bottom: 1rem;}
 .welcome-text { font-size: 2rem; font-weight: 800; letter-spacing: -0.5px; }
 .welcome-sub  { font-size: 0.95rem; color: var(--muted); margin-top: 0.3rem; }
 
