@@ -433,8 +433,8 @@ html, body {
     align-items:center;
     flex-wrap:wrap;
     gap:20px;
-    margin-bottom:2rem;
-    width:100%;
+    margin-bottom:1rem;
+    padding: 0;
 }
 
 .welcome-banner > div:first-child{
