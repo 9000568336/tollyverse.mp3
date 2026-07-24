@@ -422,7 +422,25 @@ html, body {
 .view-scroll::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.35); }
 
 /* Welcome Banner */
-.welcome-banner {margin-bottom: 2rem;}
+.welcome-banner{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    flex-wrap:wrap;
+    gap:20px;
+    margin-bottom:2rem;
+    width:100%;
+}
+
+.welcome-banner > div:first-child{
+    flex:1;
+    min-width:260px;
+}
+
+.weather-widget-badge{
+    margin-left:auto;
+    flex-shrink:0;
+}
 .welcome-text { font-size: 2rem; font-weight: 800; letter-spacing: -0.5px; }
 .welcome-sub  { font-size: 0.95rem; color: var(--muted); margin-top: 0.3rem; }
 
