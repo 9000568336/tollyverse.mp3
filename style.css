@@ -412,8 +412,7 @@ html, body {
 .view.active { display: flex; flex-direction: column; height: 100%; }
 .view-scroll {
   flex: 1; overflow-y: auto !important; overflow-x: hidden;
-  padding: 1.5rem 1.5rem 180px !important;
-  -webkit-overflow-scrolling: touch; scroll-behavior: smooth;
+  padding: 1.5rem; -webkit-overflow-scrolling: touch; scroll-behavior: smooth;
 }
 .view-scroll::-webkit-scrollbar { width: 8px; }
 .view-scroll::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
